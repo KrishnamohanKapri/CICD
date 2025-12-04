@@ -47,3 +47,10 @@ src/util/boost/
 *.log
 
 /eclipse/
+
+# Ansible
+ansible/group_vars/*/vault.yml
+ansible/*.retry
+ansible/.vault_pass
+ansible/vault_pass.txt
+ansible/inventory/*.vault
