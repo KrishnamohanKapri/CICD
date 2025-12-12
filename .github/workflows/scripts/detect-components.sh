@@ -4,29 +4,56 @@
 
 set -e
 
+# #region agent log
+LOG_FILE="/home/krish/Projects/MDE4CPP_CICD/.cursor/debug.log"
+log_debug() {
+    echo "{\"timestamp\":$(date +%s000),\"location\":\"detect-components.sh:$1\",\"message\":\"$2\",\"data\":$3,\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"$4\"}" >> "$LOG_FILE"
+}
+# #endregion agent log
+
 # Get changed files from git diff
 if [ -n "$GITHUB_BASE_REF" ]; then
     # PR: compare against base branch
     BASE_REF="${GITHUB_BASE_REF}"
-    HEAD_REF="${GITHUB_HEAD_REF:-$GITHUB_SHA}"
+    
+    # #region agent log
+    log_debug "8" "PR mode detected" "{\"GITHUB_BASE_REF\":\"$GITHUB_BASE_REF\",\"GITHUB_HEAD_REF\":\"$GITHUB_HEAD_REF\",\"GITHUB_SHA\":\"$GITHUB_SHA\"}" "A"
+    # #endregion agent log
     
     # Fetch the base branch first to ensure it's available
     git fetch origin "${BASE_REF}:refs/remotes/origin/${BASE_REF}" 2>/dev/null || \
     git fetch origin "${BASE_REF}" 2>/dev/null || true
     
-    # Try multiple diff patterns to handle different git configurations
-    CHANGED_FILES=$(git diff --name-only "origin/${BASE_REF}...${HEAD_REF}" 2>/dev/null || \
-                    git diff --name-only "${BASE_REF}...${HEAD_REF}" 2>/dev/null || \
-                    git diff --name-only "origin/${BASE_REF}..${HEAD_REF}" 2>/dev/null || \
-                    git diff --name-only "${BASE_REF}..${HEAD_REF}" 2>/dev/null || \
+    # #region agent log
+    CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    BASE_COMMIT=$(git rev-parse "origin/${BASE_REF}" 2>/dev/null || echo "unknown")
+    log_debug "16" "After fetch" "{\"CURRENT_HEAD\":\"$CURRENT_HEAD\",\"BASE_COMMIT\":\"$BASE_COMMIT\"}" "A"
+    # #endregion agent log
+    
+    # In GitHub Actions PR checkout, HEAD is the merge commit
+    # Compare base branch to HEAD (merge commit) - this shows what changed in the PR
+    CHANGED_FILES=$(git diff --name-only "origin/${BASE_REF}" HEAD 2>/dev/null || \
+                    git diff --name-only "${BASE_REF}" HEAD 2>/dev/null || \
                     echo "")
+    
+    # #region agent log
+    CHANGED_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
+    log_debug "22" "Git diff result" "{\"changed_files_count\":$CHANGED_COUNT,\"changed_files\":\"$(echo "$CHANGED_FILES" | head -5 | tr '\n' ';')\"}" "A"
+    # #endregion agent log
 else
     # Push: compare against previous commit
     CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+    
+    # #region agent log
+    log_debug "26" "Push mode" "{\"changed_files\":\"$(echo "$CHANGED_FILES" | head -5 | tr '\n' ';')\"}" "B"
+    # #endregion agent log
 fi
 
 # If no changes, exit
 if [ -z "$CHANGED_FILES" ]; then
+    # #region agent log
+    log_debug "29" "No changed files found" "{}" "C"
+    # #endregion agent log
     echo ""
     exit 0
 fi
@@ -79,7 +106,16 @@ COMPONENT_MAP["docker"]="all"
 declare -A DETECTED_COMPONENTS
 
 # Process each changed file
+FILE_COUNT=0
+MATCHED_COUNT=0
 while IFS= read -r file; do
+    [ -z "$file" ] && continue
+    FILE_COUNT=$((FILE_COUNT + 1))
+    
+    # #region agent log
+    log_debug "82" "Processing file" "{\"file\":\"$file\",\"file_number\":$FILE_COUNT}" "D"
+    # #endregion agent log
+    
     # Skip generated files and build artifacts
     if [[ "$file" == *"/src_gen/"* ]] || \
        [[ "$file" == *"/build/"* ]] || \
@@ -88,13 +124,23 @@ while IFS= read -r file; do
        [[ "$file" == "*.dll" ]] || \
        [[ "$file" == "*.jar" ]] || \
        [[ "$file" == "*.a" ]]; then
+        # #region agent log
+        log_debug "91" "File skipped" "{\"file\":\"$file\",\"reason\":\"generated_or_build_artifact\"}" "D"
+        # #endregion agent log
         continue
     fi
     
     # Check each path pattern
+    MATCHED=false
     for path_pattern in "${!COMPONENT_MAP[@]}"; do
         if [[ "$file" == "$path_pattern"* ]]; then
             component="${COMPONENT_MAP[$path_pattern]}"
+            MATCHED=true
+            MATCHED_COUNT=$((MATCHED_COUNT + 1))
+            
+            # #region agent log
+            log_debug "96" "File matched pattern" "{\"file\":\"$file\",\"pattern\":\"$path_pattern\",\"component\":\"$component\"}" "D"
+            # #endregion agent log
             
             # Special handling for "all" components
             if [ "$component" = "all" ]; then
@@ -107,7 +153,17 @@ while IFS= read -r file; do
             break
         fi
     done
+    
+    # #region agent log
+    if [ "$MATCHED" = "false" ]; then
+        log_debug "109" "File did not match any pattern" "{\"file\":\"$file\"}" "D"
+    fi
+    # #endregion agent log
 done <<< "$CHANGED_FILES"
+
+# #region agent log
+log_debug "113" "Component detection summary" "{\"total_files\":$FILE_COUNT,\"matched_files\":$MATCHED_COUNT,\"detected_components_count\":${#DETECTED_COMPONENTS[@]}}" "E"
+# #endregion agent log
 
 # Output unique components
 if [ ${#DETECTED_COMPONENTS[@]} -eq 0 ]; then
