@@ -33,11 +33,17 @@ jobs:
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
           echo "Using project directory: $PROJECT_DIR"
       
-      - name: Checkout repository to existing location
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.commit_sha }}
-          path: ${{ env.PROJECT_DIR }}
+      - name: Update existing repository
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          echo "Updating repository to commit: ${{ inputs.commit_sha }}"
+          git fetch origin
+          git checkout ${{ inputs.commit_sha }} || git checkout -b temp-${{ inputs.commit_sha }} ${{ inputs.commit_sha }}
+          git reset --hard ${{ inputs.commit_sha }}
+          echo "Repository updated successfully"
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "Git status:"
+          git status --short
       
       - name: Parse components
         id: parse
