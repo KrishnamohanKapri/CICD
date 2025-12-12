@@ -30,6 +30,11 @@ jobs:
         with:
           fetch-depth: 0  # Full history for change detection
       
+      - name: Fetch base branch for comparison
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin ${{ github.base_ref }}:${{ github.base_ref }} || true
+      
       - name: Make scripts executable
         run: |
           chmod +x .github/workflows/scripts/*.sh
