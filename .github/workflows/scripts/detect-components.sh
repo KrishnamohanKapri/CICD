@@ -5,9 +5,22 @@
 set -e
 
 # #region agent log
-LOG_FILE="/home/krish/Projects/MDE4CPP_CICD/.cursor/debug.log"
+# Determine log file path based on environment
+if [ -n "$GITHUB_WORKSPACE" ]; then
+    # GitHub Actions environment
+    LOG_FILE="${GITHUB_WORKSPACE}/.cursor/debug.log"
+else
+    # Local environment
+    LOG_FILE="/home/krish/Projects/MDE4CPP_CICD/.cursor/debug.log"
+fi
+
+# Ensure log directory exists
+LOG_DIR=$(dirname "$LOG_FILE")
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
 log_debug() {
-    echo "{\"timestamp\":$(date +%s000),\"location\":\"detect-components.sh:$1\",\"message\":\"$2\",\"data\":$3,\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"$4\"}" >> "$LOG_FILE"
+    # Silently fail if log file cannot be written (e.g., in CI without write permissions)
+    echo "{\"timestamp\":$(date +%s000),\"location\":\"detect-components.sh:$1\",\"message\":\"$2\",\"data\":$3,\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"$4\"}" >> "$LOG_FILE" 2>/dev/null || true
 }
 # #endregion agent log
 
