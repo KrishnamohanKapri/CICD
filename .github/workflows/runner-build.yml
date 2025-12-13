@@ -269,22 +269,36 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Built components:**" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            echo "${{ steps.build.outputs.successful_components }}" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.build.outputs.successful_components || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Build failed**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "⚠️ **Repository has been reverted to last known good commit and artifacts have been rebuilt.**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Failed components:**" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            echo "${{ steps.build.outputs.failed_components }}" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            
+            FAILED="${{ steps.build.outputs.failed_components }}"
+            SUCCESSFUL="${{ steps.build.outputs.successful_components }}"
+            
+            if [ -n "$FAILED" ]; then
+              echo "**Failed components:**" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              echo "$FAILED" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Failed components:** (Build failed before component build started)" >> $GITHUB_STEP_SUMMARY
+            fi
+            
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Successful components:**" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            echo "${{ steps.build.outputs.successful_components }}" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            
+            if [ -n "$SUCCESSFUL" ]; then
+              echo "**Successful components:**" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              echo "$SUCCESSFUL" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Successful components:** (Build failed before component build started)" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
       
       - name: Post PR comment
