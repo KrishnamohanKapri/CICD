@@ -20,7 +20,10 @@ mkdir -p "$LOG_DIR" 2>/dev/null || true
 
 log_debug() {
     # Silently fail if log file cannot be written (e.g., in CI without write permissions)
-    echo "{\"timestamp\":$(date +%s000),\"location\":\"detect-components.sh:$1\",\"message\":\"$2\",\"data\":$3,\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"$4\"}" >> "$LOG_FILE" 2>/dev/null || true
+    # Use date command that's more portable
+    TIMESTAMP=$(date +%s 2>/dev/null || echo "0")
+    TIMESTAMP="${TIMESTAMP}000"
+    echo "{\"timestamp\":${TIMESTAMP},\"location\":\"detect-components.sh:$1\",\"message\":\"$2\",\"data\":$3,\"sessionId\":\"debug-session\",\"runId\":\"run1\",\"hypothesisId\":\"$4\"}" >> "$LOG_FILE" 2>/dev/null || true
 }
 # #endregion agent log
 
@@ -50,7 +53,12 @@ if [ -n "$GITHUB_BASE_REF" ]; then
                     echo "")
     
     # #region agent log
-    CHANGED_COUNT=$(echo "$CHANGED_FILES" | grep -c . || echo "0")
+    # Fix: Use a safer way to count lines that won't fail with set -e
+    if [ -n "$CHANGED_FILES" ]; then
+        CHANGED_COUNT=$(echo "$CHANGED_FILES" | wc -l | tr -d ' ')
+    else
+        CHANGED_COUNT=0
+    fi
     log_debug "22" "Git diff result" "{\"changed_files_count\":$CHANGED_COUNT,\"changed_files\":\"$(echo "$CHANGED_FILES" | head -5 | tr '\n' ';')\"}" "A"
     # #endregion agent log
 else
