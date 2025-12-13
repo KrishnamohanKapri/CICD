@@ -102,16 +102,32 @@ jobs:
             const prNumber = context.payload.pull_request?.number || '';
             const commitSha = context.sha;
             
+            // Determine the correct ref for workflow dispatch
+            // For PRs, use the head branch; for push events, use context.ref
+            let workflowRef;
+            if (context.eventName === 'pull_request') {
+              // Use the head branch of the PR (e.g., 'refs/heads/branch-name')
+              workflowRef = context.payload.pull_request.head.ref;
+              // Ensure it's a full ref if not already
+              if (!workflowRef.startsWith('refs/')) {
+                workflowRef = `refs/heads/${workflowRef}`;
+              }
+            } else {
+              // For push events, context.ref is already a valid branch ref
+              workflowRef = context.ref;
+            }
+            
             console.log(`Triggering runner workflow with components: ${components}`);
             console.log(`PR Number: ${prNumber}`);
             console.log(`Commit SHA: ${commitSha}`);
+            console.log(`Using ref: ${workflowRef}`);
             
             try {
               await github.rest.actions.createWorkflowDispatch({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'runner-build.yml',
-                ref: context.ref,
+                ref: workflowRef,
                 inputs: {
                   components: components,
                   pr_number: prNumber || '',
