@@ -17,6 +17,10 @@ on:
       - 'docker/**'
       - 'gradlePlugins/**'
 
+permissions:
+  contents: read
+  actions: write  # Required to trigger workflow_dispatch
+
 jobs:
   detect-and-trigger:
     runs-on: ubuntu-latest
