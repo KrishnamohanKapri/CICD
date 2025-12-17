@@ -88,3 +88,4 @@ task buildEcore() {
 	dependsOn ':src:deliverBasicInterfaces'
 
 }
+// Test CI trigger - Mi 17. Dez 21:45:36 CET 2025
