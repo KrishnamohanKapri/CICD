@@ -28,10 +28,30 @@ jobs:
       - name: Set project directory
         id: set_dir
         run: |
-          PROJECT_DIR="$HOME/Projects/MDE4CPP_CICD"
+          # Detect the current user running the runner
+          RUNNER_USER=$(whoami)
+          
+          # Try common project locations
+          if [ -d "/home/$RUNNER_USER/Projects/MDE4CPP_CICD" ]; then
+            PROJECT_DIR="/home/$RUNNER_USER/Projects/MDE4CPP_CICD"
+          elif [ -d "$HOME/Projects/MDE4CPP_CICD" ]; then
+            PROJECT_DIR="$HOME/Projects/MDE4CPP_CICD"
+          else
+            echo "❌ Error: Repository not found in expected locations"
+            echo "Searched: /home/$RUNNER_USER/Projects/MDE4CPP_CICD and $HOME/Projects/MDE4CPP_CICD"
+            exit 1
+          fi
+          
+          # Verify it's a git repository
+          if [ ! -d "$PROJECT_DIR/.git" ]; then
+            echo "❌ Error: $PROJECT_DIR is not a git repository"
+            exit 1
+          fi
+          
           echo "project_dir=$PROJECT_DIR" >> $GITHUB_OUTPUT
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
           echo "Using project directory: $PROJECT_DIR"
+          echo "Current commit: $(cd $PROJECT_DIR && git rev-parse HEAD 2>/dev/null || echo 'N/A')"
       
       - name: Save current state (last known good commit)
         id: save_state
